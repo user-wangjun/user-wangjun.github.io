@@ -119,8 +119,6 @@ docs/archive/
 ```
 docs/
 ├── api/                          # API 文档
-│   ├── API 密钥管理文档.md
-│   └── weather-api.md
 ├── architecture/                 # 架构设计
 │   ├── 技术方案文档 - 农历和节假日功能.md
 │   ├── 技术方案文档 - 自然语言日程创建.md

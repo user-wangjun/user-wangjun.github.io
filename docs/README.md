@@ -24,8 +24,6 @@
 
 存放 API 接口文档、密钥管理、第三方服务集成指南。
 
-*   [API密钥管理文档](./api/API密钥管理文档.md)
-*   [Weather API 说明](./api/weather-api.md)
 *   [高德地图API收费说明](./api/高德地图API收费说明.md)
 
 ## 📖 指南与手册 (Guides)
