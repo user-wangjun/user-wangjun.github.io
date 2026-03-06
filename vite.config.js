@@ -14,9 +14,8 @@ export default defineConfig({
       ext: '.gz'
     })
   ],
-  // Gitee Pages 部署需要设置正确的 base 路径
-  // 格式：/仓库名/
-  base: '/wang-shang-yi-jun.gitee.io/',
+  // GitHub Pages 部署 - username.github.io 类型仓库使用根路径
+  base: '/',
 
   resolve: {
     alias: {
