@@ -32,8 +32,8 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/smart-calendar-assistant.git
-cd smart-calendar-assistant
+git clone https://github.com/user-wangjun/user_wangjun.github.io.git
+cd user_wangjun.github.io
 ```
 
 ### 2. 安装依赖
