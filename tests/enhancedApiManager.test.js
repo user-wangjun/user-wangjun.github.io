@@ -31,8 +31,8 @@ describe('EnhancedApiManager 功能测试', () => {
         error: '智谱API密钥长度应至少20位'
       });
 
-      // 测试系统智谱API密钥（有效）
-      expect(validateApiKey('33901d235d1341bc85f4d8c3ea338848.EpUZsbPOj48ZQRv2', true)).toEqual({
+      // 测试系统智谱 API 密钥（有效示例）
+      expect(validateApiKey('test-api-key-33901d235d1341bc85f4d8c3ea338848', true)).toEqual({
         valid: true,
         error: ''
       });
