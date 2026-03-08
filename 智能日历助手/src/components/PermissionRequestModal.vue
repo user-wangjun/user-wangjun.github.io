@@ -88,18 +88,15 @@
 
       <!-- 底部按钮 -->
       <div class="modal-footer">
+        <button class="btn-authorize-all-primary" @click="handleAuthorizeAll" :disabled="requestingPermission !== null">
+          <span v-if="requestingPermission === null">🔓 一键授权全部</span>
+          <span v-else>
+            <span class="spinner-small"></span>
+            授权中...
+          </span>
+        </button>
         <button class="btn-skip" @click="handleSkip">
           稍后设置
-        </button>
-        <button class="btn-authorize-all" @click="handleAuthorizeAll" :disabled="requestingPermission !== null">
-          一次性授权全部
-        </button>
-        <button
-          class="btn-continue"
-          @click="handleContinue"
-          :class="{ 'btn-warning': hasDeniedRequired }"
-        >
-          {{ continueButtonText }}
         </button>
       </div>
 
@@ -235,15 +232,25 @@ const handleContinue = () => {
  * 一次性授权全部权限
  */
 const handleAuthorizeAll = async () => {
-  console.log('[PermissionRequestModal] 开始一次性授权全部权限');
+  console.log('[PermissionRequestModal] 开始一键授权全部权限');
   
+  // 首先优先请求通知权限（这是最关键的）
+  if (permissionStatus.value['notifications']?.status !== 'granted') {
+    console.log('[PermissionRequestModal] 优先请求通知权限');
+    await requestSinglePermission('notifications');
+  }
+  
+  // 然后依次请求其他权限
   for (const [type] of Object.entries(PERMISSION_TYPES)) {
-    if (permissionStatus.value[type]?.status !== 'granted') {
+    if (type !== 'notifications' && permissionStatus.value[type]?.status !== 'granted') {
       await requestSinglePermission(type);
     }
   }
   
-  console.log('[PermissionRequestModal] 一次性授权完成');
+  console.log('[PermissionRequestModal] 一键授权完成');
+  
+  // 授权完成后自动关闭弹窗
+  handleContinue();
 };
 
 /**
@@ -637,6 +644,7 @@ const handleOverlayClick = () => {
 
 .modal-footer {
   display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid var(--main-border-primary, #e5e7eb);
@@ -644,6 +652,47 @@ const handleOverlayClick = () => {
 
 .dark .modal-footer {
   border-top-color: var(--dark-border-primary, #2d2d44);
+}
+
+.btn-authorize-all-primary {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-authorize-all-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-authorize-all-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-authorize-all-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
 
 .btn-skip {
