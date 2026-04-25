@@ -232,7 +232,7 @@ function cleanupTestEnvironment () {
   jest.clearAllMocks();
 }
 
-module.exports = {
+export {
   MockLocalStorage,
   MockIndexedDBRequest,
   MockBlob,

@@ -47,11 +47,15 @@ class TencentLocationService {
     const config = { ...this.config, ...options };
 
     console.log('[TencentLocationService] 开始定位...');
+    console.log('[TencentLocationService] 当前协议:', window.location.protocol);
+    console.log('[TencentLocationService] API密钥已配置:', !!this.apiKey);
 
     try {
       // 首先尝试GPS定位
+      console.log('[TencentLocationService] 尝试GPS定位...');
       const gpsResult = await this._getGPSLocation(config);
       if (gpsResult.success) {
+        console.log('[TencentLocationService] GPS定位成功:', gpsResult);
         // GPS定位成功，进行逆地理编码
         const addressResult = await this._reverseGeocode(gpsResult.latitude, gpsResult.longitude);
         if (addressResult.success) {
@@ -88,12 +92,15 @@ class TencentLocationService {
             responseTime: Date.now() - startTime
           };
         }
+      } else {
+        console.warn('[TencentLocationService] GPS定位失败:', gpsResult.error);
       }
 
       // GPS定位失败，尝试IP定位（需要域名白名单）
       console.log('[TencentLocationService] GPS定位失败，尝试IP定位...');
       const ipResult = await this._getIPLocation();
       if (ipResult.success) {
+        console.log('[TencentLocationService] IP定位成功:', ipResult.data);
         return {
           success: true,
           data: {
@@ -104,6 +111,8 @@ class TencentLocationService {
           source: 'tencent_ip',
           responseTime: Date.now() - startTime
         };
+      } else {
+        console.warn('[TencentLocationService] IP定位失败:', ipResult.error);
       }
 
       // GPS和IP定位都失败，返回默认位置
@@ -119,7 +128,8 @@ class TencentLocationService {
         responseTime: Date.now() - startTime
       };
     } catch (error) {
-      console.error('[TencentLocationService] 定位失败:', error);
+      console.error('[TencentLocationService] 定位异常:', error);
+      console.error('[TencentLocationService] 错误堆栈:', error.stack);
       throw error;
     }
   }
@@ -131,16 +141,29 @@ class TencentLocationService {
   _getGPSLocation (config) {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
-        console.log('[TencentLocationService] 浏览器不支持地理定位');
-        resolve({ success: false });
+        const errorMsg = '浏览器不支持地理定位API';
+        console.warn('[TencentLocationService]', errorMsg);
+        resolve({ success: false, error: errorMsg });
         return;
       }
 
       console.log('[TencentLocationService] 请求GPS定位...');
+      console.log('[TencentLocationService] 定位配置:', {
+        enableHighAccuracy: config.enableHighAccuracy,
+        timeout: config.gpsTimeout,
+        maximumAge: config.maximumAge
+      });
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log('[TencentLocationService] GPS定位成功');
+          console.log('[TencentLocationService] 位置信息:', {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude,
+            speed: position.coords.speed
+          });
           resolve({
             success: true,
             latitude: position.coords.latitude,
@@ -150,15 +173,26 @@ class TencentLocationService {
         },
         (error) => {
           let errorMsg = error.message;
+          let errorDetail = '';
+
           if (error.code === 1) {
             errorMsg = '用户拒绝了定位权限，请在浏览器设置中允许位置访问';
+            errorDetail = 'PERMISSION_DENIED';
           } else if (error.code === 2) {
             errorMsg = '无法获取位置信息，请检查GPS是否开启';
+            errorDetail = 'POSITION_UNAVAILABLE';
           } else if (error.code === 3) {
             errorMsg = '定位超时，请检查网络连接';
+            errorDetail = 'TIMEOUT';
           }
-          console.log('[TencentLocationService] GPS定位失败:', errorMsg);
-          resolve({ success: false, error: errorMsg, code: error.code });
+
+          console.warn('[TencentLocationService] GPS定位失败:', {
+            code: error.code,
+            message: errorMsg,
+            detail: errorDetail,
+            originalMessage: error.message
+          });
+          resolve({ success: false, error: errorMsg, code: error.code, detail: errorDetail });
         },
         {
           enableHighAccuracy: config.enableHighAccuracy,
@@ -188,12 +222,22 @@ class TencentLocationService {
     }
 
     try {
-      // 构建基础URL，不包含output和callback参数，由_jsonpRequest统一处理
-      const baseUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${latitude},${longitude}&key=${this.apiKey}`;
-
       console.log('[TencentLocationService] 请求逆地理编码...');
 
-      const result = await this._jsonpRequest(baseUrl, 5000);
+      // 首先尝试CORS请求（HTTPS环境优先）
+      let result;
+      try {
+        result = await this._corsRequest(
+          'https://apis.map.qq.com/ws/geocoder/v1/',
+          { location: `${latitude},${longitude}`, key: this.apiKey },
+          5000
+        );
+      } catch (corsError) {
+        console.warn('[TencentLocationService] CORS请求失败，尝试JSONP:', corsError.message);
+        // CORS失败时降级到JSONP
+        const baseUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${latitude},${longitude}&key=${this.apiKey}`;
+        result = await this._jsonpRequest(baseUrl, 5000);
+      }
 
       if (result.status === 0 && result.result) {
         const address = result.result.address_component;
@@ -234,12 +278,22 @@ class TencentLocationService {
     }
 
     try {
-      // 构建基础URL，不包含output和callback参数，由_jsonpRequest统一处理
-      const baseUrl = `https://apis.map.qq.com/ws/location/v1/ip?key=${this.apiKey}`;
-
       console.log('[TencentLocationService] 请求IP定位...');
 
-      const result = await this._jsonpRequest(baseUrl, 3000);
+      // 首先尝试CORS请求（HTTPS环境优先）
+      let result;
+      try {
+        result = await this._corsRequest(
+          'https://apis.map.qq.com/ws/location/v1/ip',
+          { key: this.apiKey },
+          3000
+        );
+      } catch (corsError) {
+        console.warn('[TencentLocationService] CORS请求失败，尝试JSONP:', corsError.message);
+        // CORS失败时降级到JSONP
+        const baseUrl = `https://apis.map.qq.com/ws/location/v1/ip?key=${this.apiKey}`;
+        result = await this._jsonpRequest(baseUrl, 3000);
+      }
 
       if (result.status === 0 && result.result) {
         const location = result.result.location;
@@ -266,11 +320,52 @@ class TencentLocationService {
   }
 
   /**
+   * CORS请求封装（HTTPS环境优先）
+   * @private
+   */
+  async _corsRequest (url, params, timeout = 5000) {
+    console.log('[TencentLocationService] 使用CORS请求:', url);
+
+    // 构建查询参数
+    const searchParams = new URLSearchParams(params);
+    const fullUrl = `${url}?${searchParams.toString()}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        mode: 'cors'
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('[TencentLocationService] CORS请求成功:', data);
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('CORS请求超时');
+      }
+      throw error;
+    }
+  }
+
+  /**
    * JSONP请求封装
    * 统一处理callback参数和output参数，避免重复添加
    * @private
    */
   _jsonpRequest (url, timeout = 5000) {
+    console.log('[TencentLocationService] 使用JSONP请求:', url);
+
     return new Promise((resolve, reject) => {
       const callbackName = 'tencentMapCallback_' + Date.now();
       const script = document.createElement('script');
@@ -287,7 +382,7 @@ class TencentLocationService {
       // 设置超时
       const timeoutId = setTimeout(() => {
         cleanup();
-        reject(new Error('请求超时'));
+        reject(new Error('JSONP请求超时'));
       }, timeout);
 
       // 清理函数
@@ -301,14 +396,16 @@ class TencentLocationService {
 
       // 定义回调函数
       window[callbackName] = (data) => {
+        console.log('[TencentLocationService] JSONP回调成功:', data);
         cleanup();
         resolve(data);
       };
 
       // 错误处理
-      script.onerror = () => {
+      script.onerror = (event) => {
+        console.error('[TencentLocationService] JSONP脚本加载失败:', event);
         cleanup();
-        reject(new Error('脚本加载失败'));
+        reject(new Error('JSONP脚本加载失败'));
       };
 
       document.head.appendChild(script);

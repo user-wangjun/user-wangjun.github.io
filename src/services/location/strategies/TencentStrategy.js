@@ -17,8 +17,10 @@ export default class TencentStrategy {
    * @returns {Promise<Object>}
    */
   async execute () {
+    console.log('[TencentStrategy] 开始执行腾讯定位策略');
+
     try {
-      // 构造超时Promise
+      // 构建超时Promise
       const timeoutPromise = new Promise((_resolve, reject) => {
         setTimeout(() => reject(new Error('腾讯定位超时(3s)')), this.timeout);
       });
@@ -31,6 +33,7 @@ export default class TencentStrategy {
       });
 
       const result = await Promise.race([locationPromise, timeoutPromise]);
+      console.log('[TencentStrategy] 腾讯定位服务返回:', result);
 
       if (!result.success || !result.data) {
         throw new Error(result.error || '腾讯定位返回失败');
@@ -46,6 +49,13 @@ export default class TencentStrategy {
       if (accuracy <= 0) {
         throw new Error(`无效精度: ${accuracy}`);
       }
+
+      console.log('[TencentStrategy] 腾讯定位成功:', {
+        latitude,
+        longitude,
+        accuracy,
+        source: result.source
+      });
 
       // 构造标准返回格式
       return {
@@ -63,7 +73,10 @@ export default class TencentStrategy {
         source: 'tencent'
       };
     } catch (error) {
-      console.warn('[TencentStrategy] 定位失败:', error.message);
+      console.error('[TencentStrategy] 定位失败:', {
+        message: error.message,
+        stack: error.stack
+      });
       return {
         success: false,
         error: error.message

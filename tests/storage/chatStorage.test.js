@@ -3,7 +3,7 @@
  * 测试聊天记录存储功能
  */
 
-const { setupTestEnvironment, cleanupTestEnvironment } = require('../utils/testEnvironment');
+import { setupTestEnvironment, cleanupTestEnvironment } from '../utils/testEnvironment.js';
 
 describe('ChatStorage - 聊天存储功能测试', () => {
   beforeEach(() => {

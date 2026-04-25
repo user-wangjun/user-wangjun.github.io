@@ -3,7 +3,7 @@
  * 测试对话存储服务功能
  */
 
-const { setupTestEnvironment, cleanupTestEnvironment } = require('../utils/testEnvironment');
+import { setupTestEnvironment, cleanupTestEnvironment } from '../utils/testEnvironment.js';
 
 describe('ConversationService - 对话服务功能测试', () => {
   beforeEach(() => {
